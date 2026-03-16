@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MeshChat</string>
+    <string name="tab_chats">Чаты</string>
+    <string name="tab_peers">Узлы</string>
+    <string name="tab_settings">Настройки</string>
+    <string name="no_messages">Нет сообщений</string>
+    <string name="no_peers">Нет доступных узлов</string>
+    <string name="send_hint">Написать сообщение…</string>
+    <string name="btn_send">Отправить</string>
+    <string name="btn_discover">Найти устройства</string>
+    <string name="btn_connect">Подключиться</string>
+    <string name="btn_disconnect">Отключиться</string>
+    <string name="status_connected">Подключено</string>
+    <string name="status_disconnected">Отключено</string>
+    <string name="status_searching">Поиск…</string>
+    <string name="encryption_info">Сквозное шифрование (RSA + AES-256-GCM)</string>
+    <string name="message_stored">Сообщение сохранено в банке</string>
+    <string name="message_delivered">Сообщение доставлено</string>
+    <string name="message_read">Сообщение прочитано</string>
+    <string name="mesh_network">Mesh-сеть</string>
+    <string name="device_name">Имя устройства</string>
+    <string name="your_id">Ваш ID</string>
+    <string name="active_peers">Активные узлы: %d</string>
+    <string name="stored_messages">Сообщений в банке: %d</string>
+    <string name="protocol_info">Протокол: Wi-Fi Direct (2.4 ГГц)</string>
+    <string name="about_title">О приложении</string>
+    <string name="about_description">MeshChat — мессенджер на основе mesh-сети Wi-Fi Direct.\nСообщения шифруются сквозным шифрованием и хранятся\nу всех участников до прочтения адресатом.</string>
+</resources>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="mesh_primary">#FF1B5E20</color>
+    <color name="mesh_primary_variant">#FF2E7D32</color>
+    <color name="mesh_secondary">#FF00BFA5</color>
+    <color name="mesh_background">#FF121212</color>
+    <color name="mesh_surface">#FF1E1E1E</color>
+    <color name="mesh_on_primary">#FFFFFFFF</color>
+    <color name="mesh_on_secondary">#FF000000</color>
+    <color name="mesh_on_background">#FFFFFFFF</color>
+    <color name="mesh_on_surface">#FFFFFFFF</color>
+    <color name="mesh_accent">#FF69F0AE</color>
+    <color name="mesh_bubble_sent">#FF1B5E20</color>
+    <color name="mesh_bubble_received">#FF2C2C2C</color>
+</resources>
