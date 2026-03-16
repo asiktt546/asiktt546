@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MeshChat" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">@color/mesh_primary</item>
+        <item name="android:colorAccent">@color/mesh_accent</item>
+        <item name="android:statusBarColor">@color/mesh_primary</item>
+        <item name="android:navigationBarColor">@color/mesh_background</item>
+    </style>
+</resources>
