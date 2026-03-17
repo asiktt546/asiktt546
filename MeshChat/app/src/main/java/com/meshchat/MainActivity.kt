@@ -74,6 +74,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeshChatApp(
     meshViewModel: MeshViewModel = viewModel()
@@ -84,12 +85,30 @@ fun MeshChatApp(
 
     // Состояния
     val peers by meshViewModel.peers.collectAsState()
+    val visiblePeers by meshViewModel.visiblePeers.collectAsState()
+    val verifiedMeshDeviceNames by meshViewModel.verifiedMeshDeviceNames.collectAsState()
+    val verifiedMeshDeviceAddresses by meshViewModel.verifiedMeshDeviceAddresses.collectAsState()
+    val serviceMeshDeviceAddresses by meshViewModel.serviceMeshDeviceAddresses.collectAsState()
+    val showOnlyMeshDevices by meshViewModel.showOnlyMeshDevices.collectAsState()
+    val readinessMessage by meshViewModel.readinessMessage.collectAsState()
+    val isReadyForDiscovery by meshViewModel.isReadyForDiscovery.collectAsState()
+    val broadcastStatusMessage by meshViewModel.broadcastStatusMessage.collectAsState()
+    val isBroadcastAvailable by meshViewModel.isBroadcastAvailable.collectAsState()
     val isDiscovering by meshViewModel.isDiscovering.collectAsState()
     val connectionInfo by meshViewModel.connectionInfo.collectAsState()
+    val peersError by meshViewModel.peersError.collectAsState()
     val chatMessages by meshViewModel.currentChatMessages.collectAsState()
     val nodeId by meshViewModel.nodeId.collectAsState()
+    val crashLog by meshViewModel.crashLog.collectAsState()
+    val backgroundSyncEnabled by meshViewModel.backgroundSyncEnabled.collectAsState()
+    val broadcastEnabled by meshViewModel.broadcastEnabled.collectAsState()
+    val backgroundServiceRunning by meshViewModel.backgroundServiceRunning.collectAsState()
+    val wifiLockHeld by meshViewModel.wifiLockHeld.collectAsState()
+    val wakeLockHeld by meshViewModel.wakeLockHeld.collectAsState()
     val recentChats by meshViewModel.recentChats.collectAsState(initial = emptyList())
     val bankMessageCount by meshViewModel.bankMessageCount.collectAsState(initial = 0)
+    val userNickname by meshViewModel.userNickname.collectAsState()
+    val avatarPath by meshViewModel.avatarPath.collectAsState()
 
     val isConnected = connectionInfo?.groupFormed == true
 
@@ -210,12 +229,23 @@ fun MeshChatApp(
 
             composable(Screen.Peers.route) {
                 PeersScreen(
-                    peers = peers,
+                    peers = visiblePeers,
+                    verifiedMeshDeviceNames = verifiedMeshDeviceNames,
+                    verifiedMeshDeviceAddresses = verifiedMeshDeviceAddresses + serviceMeshDeviceAddresses,
+                    showOnlyMeshDevices = showOnlyMeshDevices,
+                    readinessMessage = readinessMessage,
+                    isReadyForDiscovery = isReadyForDiscovery,
+                    broadcastStatusMessage = broadcastStatusMessage,
+                    isBroadcastAvailable = isBroadcastAvailable,
                     isDiscovering = isDiscovering,
                     isConnected = isConnected,
+                    errorMessage = peersError,
+                    onShowOnlyMeshDevicesChanged = { meshViewModel.setShowOnlyMeshDevices(it) },
                     onDiscoverClick = { meshViewModel.discoverPeers() },
+                    onConnectByNameClick = { name -> meshViewModel.connectToDeviceByName(name) },
                     onConnectClick = { device -> meshViewModel.connectToDevice(device) },
-                    onDisconnectClick = { meshViewModel.disconnect() }
+                    onDisconnectClick = { meshViewModel.disconnect() },
+                    onErrorShown = { meshViewModel.consumePeersError() }
                 )
             }
 
@@ -223,8 +253,23 @@ fun MeshChatApp(
                 SettingsScreen(
                     nodeId = nodeId,
                     deviceName = meshViewModel.getDeviceName(),
+                    userNickname = userNickname,
+                    avatarPath = avatarPath,
                     activePeers = peers.size,
-                    bankMessageCount = bankMessageCount
+                    bankMessageCount = bankMessageCount,
+                    broadcastEnabled = broadcastEnabled,
+                    backgroundSyncEnabled = backgroundSyncEnabled,
+                    backgroundServiceRunning = backgroundServiceRunning,
+                    wifiLockHeld = wifiLockHeld,
+                    wakeLockHeld = wakeLockHeld,
+                    onBroadcastToggle = { enabled -> meshViewModel.setBroadcastEnabled(enabled) },
+                    onBackgroundWorkToggle = { enabled -> meshViewModel.setBackgroundWorkEnabled(enabled) },
+                    onSaveNickname = { nickname -> meshViewModel.updateUserNickname(nickname) },
+                    onPickAvatar = { uri -> meshViewModel.updateAvatarFromUri(uri) },
+                    onClearAvatar = { meshViewModel.clearAvatar() },
+                    crashLog = crashLog,
+                    onRefreshCrashLog = { meshViewModel.refreshCrashLog() },
+                    onClearCrashLog = { meshViewModel.clearCrashLog() }
                 )
             }
 

@@ -23,10 +23,13 @@ import com.meshchat.ui.theme.*
 fun PeerItem(
     deviceName: String,
     deviceAddress: String,
+    isMeshChatCompatible: Boolean,
     isConnected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isAvailableForMeshChat = isConnected || isMeshChatCompatible
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -49,26 +52,46 @@ fun PeerItem(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(if (isConnected) MeshGreen else DarkSurfaceVariant),
+                    .background(if (isAvailableForMeshChat) MeshGreen else DarkSurfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (isConnected) Icons.Filled.Wifi else Icons.Filled.WifiOff,
-                    contentDescription = if (isConnected) "Подключено" else "Не подключено",
-                    tint = if (isConnected) MeshGreenAccent else TextSecondary,
+                    imageVector = if (isAvailableForMeshChat) Icons.Filled.Wifi else Icons.Filled.WifiOff,
+                    contentDescription = if (isAvailableForMeshChat) "Доступно" else "Недоступно",
+                    tint = if (isAvailableForMeshChat) MeshGreenAccent else TextSecondary,
                     modifier = Modifier.size(24.dp)
                 )
             }
 
             // Информация об устройстве
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = deviceName.ifEmpty { "Неизвестное устройство" },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = deviceName.ifEmpty { "Неизвестное устройство" },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+
+                    if (isMeshChatCompatible) {
+                        Surface(
+                            color = MeshGreen,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Text(
+                                text = "MeshChat",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextOnPrimary,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = deviceAddress,

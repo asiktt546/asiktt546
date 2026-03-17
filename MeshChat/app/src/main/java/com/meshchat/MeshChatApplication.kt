@@ -9,6 +9,7 @@ class MeshChatApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        CrashReporter.init(this)
         instance = this
     }
 

@@ -24,16 +24,45 @@ import com.meshchat.ui.theme.*
 @Composable
 fun PeersScreen(
     peers: List<WifiP2pDevice>,
+    verifiedMeshDeviceNames: Set<String>,
+    verifiedMeshDeviceAddresses: Set<String>,
+    showOnlyMeshDevices: Boolean,
+    readinessMessage: String,
+    isReadyForDiscovery: Boolean,
+    broadcastStatusMessage: String,
+    isBroadcastAvailable: Boolean,
     isDiscovering: Boolean,
     isConnected: Boolean,
+    errorMessage: String?,
+    onShowOnlyMeshDevicesChanged: (Boolean) -> Unit,
     onDiscoverClick: () -> Unit,
+    onConnectByNameClick: (String) -> Unit,
     onConnectClick: (WifiP2pDevice) -> Unit,
     onDisconnectClick: () -> Unit,
+    onErrorShown: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var deviceNameInput by remember { mutableStateOf("") }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(errorMessage) {
+        if (!errorMessage.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(errorMessage)
+            onErrorShown()
+        }
+    }
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = DarkBackground,
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        }
+    ) { innerPadding ->
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
+            .padding(innerPadding)
             .background(DarkBackground)
     ) {
         // Заголовок
@@ -109,17 +138,17 @@ fun PeersScreen(
             Button(
                 onClick = onDiscoverClick,
                 modifier = Modifier.weight(1f),
-                enabled = !isDiscovering,
+                enabled = !isDiscovering && isReadyForDiscovery,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MeshGreen,
                     contentColor = TextOnPrimary
                 )
             ) {
                 if (isDiscovering) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = MeshGreenAccent,
-                        strokeWidth = 2.dp
+                    Icon(
+                        imageVector = Icons.Filled.Sync,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Поиск…")
@@ -152,6 +181,122 @@ fun PeersScreen(
             }
         }
 
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            color = if (isReadyForDiscovery) DarkSurfaceVariant else ErrorColor.copy(alpha = 0.15f),
+            shape = MaterialTheme.shapes.small
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = if (isReadyForDiscovery) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = if (isReadyForDiscovery) MeshGreenAccent else ErrorColor,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = readinessMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isReadyForDiscovery) TextSecondary else ErrorColor
+                )
+            }
+        }
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            color = if (isBroadcastAvailable) DarkSurfaceVariant else ErrorColor.copy(alpha = 0.15f),
+            shape = MaterialTheme.shapes.small
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = if (isBroadcastAvailable) Icons.Filled.CastConnected else Icons.Filled.Cast,
+                    contentDescription = null,
+                    tint = if (isBroadcastAvailable) MeshGreenAccent else ErrorColor,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = broadcastStatusMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isBroadcastAvailable) TextSecondary else ErrorColor
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = deviceNameInput,
+                onValueChange = { deviceNameInput = it },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                placeholder = { Text("Имя устройства") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MeshGreenAccent,
+                    unfocusedBorderColor = DividerColor,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
+                    focusedPlaceholderColor = TextSecondary,
+                    unfocusedPlaceholderColor = TextSecondary
+                )
+            )
+
+            OutlinedButton(
+                onClick = {
+                    onConnectByNameClick(deviceNameInput)
+                },
+                enabled = deviceNameInput.isNotBlank(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MeshGreenAccent
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.PersonAdd,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Добавить")
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Показывать только устройства с MeshChat",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+            Switch(
+                checked = showOnlyMeshDevices,
+                onCheckedChange = onShowOnlyMeshDevicesChanged,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MeshGreenAccent,
+                    checkedTrackColor = MeshGreen
+                )
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // Количество найденных устройств
@@ -168,7 +313,8 @@ fun PeersScreen(
         if (peers.isEmpty()) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .weight(1f)
+                    .fillMaxWidth()
                     .padding(32.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -199,19 +345,31 @@ fun PeersScreen(
         } else {
             LazyColumn(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .weight(1f)
+                    .fillMaxWidth()
                     .animateContentSize(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
                 items(peers) { device ->
+                    val peerName = device.deviceName ?: ""
+                    val peerAddress = device.deviceAddress?.lowercase() ?: ""
+                    val isMeshCompatible = showOnlyMeshDevices ||
+                        verifiedMeshDeviceAddresses.contains(peerAddress) ||
+                        verifiedMeshDeviceNames.contains(peerName.lowercase())
                     PeerItem(
                         deviceName = device.deviceName ?: "Неизвестно",
                         deviceAddress = device.deviceAddress ?: "",
+                        isMeshChatCompatible = isMeshCompatible,
                         isConnected = device.status == WifiP2pDevice.CONNECTED,
-                        onClick = { onConnectClick(device) }
+                        onClick = {
+                            val selectedName = (device.deviceName ?: "").ifBlank { device.deviceAddress ?: "" }
+                            deviceNameInput = selectedName
+                            onConnectClick(device)
+                        }
                     )
                 }
             }
         }
+    }
     }
 }

@@ -44,12 +44,20 @@ class MessageRouter(
     /** Карта публичных ключей: nodeId -> PublicKey */
     private val publicKeys = mutableMapOf<String, PublicKey>()
 
+    /** Узлы, которым уже отправляли свой публичный ключ, чтобы избежать ping-pong */
+    private val keyExchangeSentTo = mutableSetOf<String>()
+
+    private var localDeviceNameProvider: () -> String = { android.os.Build.MODEL }
+
+    /** Callback для уведомления UI о подтверждённых узлах с установленным MeshChat */
+    var onKnownNodeUpdated: ((MeshNode) -> Unit)? = null
+
     /**
      * Инициализация роутера.
      */
     fun initialize() {
-        meshManager.onPacketReceived = { packet ->
-            handleIncomingPacket(packet)
+        meshManager.onPacketReceivedWithSender = { packet, senderHost ->
+            handleIncomingPacket(packet, senderHost)
         }
     }
 
@@ -62,6 +70,10 @@ class MessageRouter(
      * Получить список известных узлов.
      */
     fun getKnownNodes(): Map<String, MeshNode> = knownNodes.toMap()
+
+    fun setLocalDeviceNameProvider(provider: () -> String) {
+        localDeviceNameProvider = provider
+    }
 
     /**
      * Отправить зашифрованное сообщение.
@@ -116,13 +128,13 @@ class MessageRouter(
     /**
      * Обработка входящих пакетов.
      */
-    private fun handleIncomingPacket(packet: MeshPacket) {
+    private fun handleIncomingPacket(packet: MeshPacket, senderHost: String?) {
         scope.launch {
             when (packet.type) {
-                MeshPacketType.KEY_EXCHANGE -> handleKeyExchange(packet)
+                MeshPacketType.KEY_EXCHANGE -> handleKeyExchange(packet, senderHost)
                 MeshPacketType.ENCRYPTED_MESSAGE -> handleEncryptedMessage(packet)
                 MeshPacketType.READ_RECEIPT -> handleReadReceipt(packet)
-                MeshPacketType.BANK_SYNC_REQUEST -> handleBankSyncRequest(packet)
+                MeshPacketType.BANK_SYNC_REQUEST -> handleBankSyncRequest(packet, senderHost)
                 MeshPacketType.BANK_SYNC_RESPONSE -> handleBankSyncResponse(packet)
                 MeshPacketType.PING -> { /* Ответить PONG */ }
                 MeshPacketType.PONG -> { /* Обновить lastSeen */ }
@@ -133,9 +145,11 @@ class MessageRouter(
     /**
      * Обработка обмена ключами.
      */
-    private fun handleKeyExchange(packet: MeshPacket) {
+    private fun handleKeyExchange(packet: MeshPacket, senderHost: String?) {
         try {
             val data = gson.fromJson(packet.payload, KeyExchangeData::class.java)
+            if (data.nodeId == getMyNodeId()) return
+
             val publicKey = cryptoManager.publicKeyFromBase64(data.publicKeyBase64)
             publicKeys[data.nodeId] = publicKey
 
@@ -147,6 +161,29 @@ class MessageRouter(
                 isConnected = true
             )
             knownNodes[data.nodeId] = node
+            onKnownNodeUpdated?.invoke(node)
+
+            scope.launch {
+                ensureChatExistsWithPeer(peerNodeId = data.nodeId)
+            }
+
+            if (keyExchangeSentTo.add(data.nodeId)) {
+                val info = meshManager.connectionInfo.value
+                val hostAddress = senderHost ?: info?.groupOwnerAddress?.hostAddress
+                if (!hostAddress.isNullOrBlank()) {
+                    val myData = KeyExchangeData(
+                        nodeId = getMyNodeId(),
+                        deviceName = localDeviceNameProvider(),
+                        publicKeyBase64 = cryptoManager.getPublicKeyBase64()
+                    )
+                    val responsePacket = MeshPacket(
+                        type = MeshPacketType.KEY_EXCHANGE,
+                        senderId = getMyNodeId(),
+                        payload = gson.toJson(myData)
+                    )
+                    meshManager.sendPacket(responsePacket, hostAddress)
+                }
+            }
 
             Log.d(TAG, "Получен ключ от узла: ${data.nodeId} (${data.deviceName})")
         } catch (e: Exception) {
@@ -246,7 +283,7 @@ class MessageRouter(
     /**
      * Обработка запроса синхронизации банка.
      */
-    private fun handleBankSyncRequest(packet: MeshPacket) {
+    private fun handleBankSyncRequest(packet: MeshPacket, senderHost: String?) {
         scope.launch {
             val bankMessages = repository.getBankMessages()
             val response = MeshPacket(
@@ -256,7 +293,7 @@ class MessageRouter(
             )
             // Отправляем банк сообщений запросившему узлу
             val info = meshManager.connectionInfo.value
-            info?.groupOwnerAddress?.hostAddress?.let { address ->
+            (senderHost ?: info?.groupOwnerAddress?.hostAddress)?.let { address ->
                 meshManager.sendPacket(response, address)
             }
         }
@@ -304,10 +341,10 @@ class MessageRouter(
     /**
      * Инициировать обмен ключами с подключённым узлом.
      */
-    fun initiateKeyExchange(hostAddress: String, deviceName: String) {
+    fun initiateKeyExchange(hostAddress: String) {
         val data = KeyExchangeData(
             nodeId = getMyNodeId(),
-            deviceName = deviceName,
+            deviceName = localDeviceNameProvider(),
             publicKeyBase64 = cryptoManager.getPublicKeyBase64()
         )
 
@@ -317,6 +354,39 @@ class MessageRouter(
             payload = gson.toJson(data)
         )
 
+        meshManager.sendPacket(packet, hostAddress)
+    }
+
+    private suspend fun ensureChatExistsWithPeer(peerNodeId: String) {
+        val chatInitId = "chat-init-$peerNodeId"
+        val existing = repository.getMessageById(chatInitId)
+        if (existing != null) return
+
+        val placeholder = Message(
+            id = chatInitId,
+            senderId = peerNodeId,
+            recipientId = getMyNodeId(),
+            encryptedContent = "",
+            encryptedAesKey = "",
+            iv = "",
+            timestamp = System.currentTimeMillis(),
+            status = MessageStatus.DELIVERED,
+            isMine = false,
+            decryptedContent = "Чат создан. Можно отправлять сообщения",
+            isInBank = false
+        )
+        repository.saveMessage(placeholder)
+    }
+
+    /**
+     * Запросить синхронизацию банка сообщений у текущего подключённого узла.
+     */
+    fun requestBankSync(hostAddress: String) {
+        val packet = MeshPacket(
+            type = MeshPacketType.BANK_SYNC_REQUEST,
+            senderId = getMyNodeId(),
+            payload = "{}"
+        )
         meshManager.sendPacket(packet, hostAddress)
     }
 }
