@@ -12,3 +12,5 @@ local.properties
 /MeshChat/build
 /MeshChat/app/build
 /MeshChat/local.properties
+
+/MeshChat/.tools
